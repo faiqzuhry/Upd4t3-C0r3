@@ -1,0 +1,121 @@
+#!/bin/bash
+
+# Mendefinisikan warna untuk pesan
+export RED='\033[0;31m'
+export GREEN='\033[0;32m'
+export YELLOW='\033[0;33m'
+export BLUE='\033[0;34m'
+export PURPLE='\033[0;35m'
+export CYAN='\033[0;36m'
+export CYAN_BG='\033[46;1;97m'   # Latar belakang cyan cerah dengan teks putih
+export LIGHT='\033[0;37m'
+export PINK='\033[0;35m'
+export ORANGE='\033[38;5;208m'
+export PINK_BG='\033[45;1;97m'
+export BIRU='\033[44;1;97m'
+export RED_BG='\033[41;1;97m'   # Latar belakang pink cerah dengan teks putih
+export NC='\033[0m'
+export INDIGO='\033[38;5;54m'
+export TEAL='\033[38;5;30m'
+export WHITE='\033[1;37m'
+
+# Ambil versi Xray terinstal
+xray_version=$(/var/lib/marzban/core/xray -version | grep -oP 'Xray\s+\K[^\s]+')
+
+# Ambil versi Xray terbaru dari GitHub
+latest_version=$(curl -s https://api.github.com/repos/XTLS/Xray-core/releases/latest | grep -oP '"tag_name":\s*"\K[^"]+')
+
+# Format versi untuk dibandingkan (hilangkan v dari latest_version jika ada)
+latest_version_clean=$(echo "$latest_version" | sed 's/^v//')
+
+# Periksa apakah versi terinstal adalah versi terbaru
+if [[ "$xray_version" == "$latest_version_clean" ]]; then
+    display_version="${CYAN}v${xray_version}${NC} ${YELLOW}latest !${NC}"
+else
+    display_version="${ORANGE}v${xray_version}${NC} ${RED}!${NC}"  # Tambahkan teks "jadul" berwarna merah
+fi
+
+# Mengambil informasi sistem
+OS=$(lsb_release -ds)
+RAM=$(free -m | awk '/Mem:/ { print $2 }')
+UPTIME=$(uptime -p)
+IP_VPS=$(hostname -I | awk '{print $1}')
+ISP=$(curl -s ipinfo.io/org)
+DOMAIN=$(cat /etc/data/domain)
+
+# Mengambil informasi IP lengkap dari ipinfo.io
+IP_INFO=$(curl -s "http://ipinfo.io/$IP_VPS/json")
+IP_REGION=$(echo "$IP_INFO" | jq -r '.region')
+IP_COUNTRY=$(echo "$IP_INFO" | jq -r '.country')
+IP_LOC=$(echo "$IP_INFO" | jq -r '.loc')
+
+# Tampilkan menu
+while true; do
+    clear
+    echo -e "${TEAL}╭══════════════════════════════════════════════╮${NC}"
+    echo -e "${TEAL}│${NC}${RED_BG}            ❖ MARZBAN XRAY CORE ❖             ${NC}${TEAL}│${NC}"
+    echo -e "${TEAL}╰══════════════════════════════════════════════╯${NC}"
+    echo -e "➢ Silahkan ${TEAL}update core${NC} !"
+    echo ""
+    echo -e "➢ Xray Core kamu Saat ini : $display_version" # gunakan echo -e agar escape sequence dievaluasi
+    echo ""
+    echo "❖ Masukan pilihan kamu :"
+    echo -e "1. Update core ${BLUE}V24.12.31${NC}"
+    echo -e "2. Downgrade core ${RED}v1.8.24${NC}"
+    echo "x. Back to menu"
+    echo -e "${TEAL}════════════════════════════════════════════════${NC}"
+    read -rp "➢ Your Choice : " choice
+
+    case $choice in
+        1)
+            echo "⚡ Sabar sayang sedang mengupdate Xray Core..."
+            
+            # Hapus core lama
+            rm -rf /var/lib/marzban/core
+            mkdir -p /var/lib/marzban/core && cd /var/lib/marzban/core
+
+            # Download core terbaru
+            wget https://github.com/XTLS/Xray-core/releases/download/v24.12.31/Xray-linux-64.zip
+
+            # Ekstrak dan bersihkan file yang tidak perlu
+            unzip Xray-linux-64.zip && rm Xray-linux-64.zip LICENSE README.md *.dat
+
+            # Restart Docker dan Marzban
+            cd /opt/marzban
+            docker compose down && docker compose up -d
+            cd
+            
+            echo -e "${CYAN}❖ Success, Xray Core berhasil diperbarui!${NC}"
+            read -rp "Tekan [Enter] untuk kembali ke menu..."
+            ;;
+        2)
+            echo "❖ Sabar sayang sedang downgrade Xray Core..."
+            
+            # Hapus core lama
+            rm -rf /var/lib/marzban/core
+            mkdir -p /var/lib/marzban/core && cd /var/lib/marzban/core
+
+            # Download core terbaru
+            wget https://github.com/XTLS/Xray-core/releases/download/v1.8.24/Xray-linux-64.zip
+
+            # Ekstrak dan bersihkan file yang tidak perlu
+            unzip Xray-linux-64.zip && rm Xray-linux-64.zip LICENSE README.md *.dat
+
+            # Restart Docker dan Marzban
+            cd /opt/marzban
+            docker compose down && docker compose up -d
+            cd
+            
+            echo -e "${CYAN}⚡ Xray Core berhasil didowngrade!${NC}"
+            read -rp "❖ Tekan apa saja untuk kembali ke menu..."
+            ;;
+        x)
+            echo "Exiting..."
+            menu
+            ;;
+        *)
+            echo "❖ Oops, Opsi tidak valid! Silakan pilih angka 1 sampai 2."
+            read -rp "❖ Tekan apa saja untuk kembali ke menu..."
+            ;;
+    esac
+done
